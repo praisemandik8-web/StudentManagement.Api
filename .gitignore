@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+
+# Local database
+students.db
+students.db-shm
+students.db-wal
+
+# IDE and editor files
+.vscode/
+.vs/
+
+# User-specific files
+*.user
+*.suo
