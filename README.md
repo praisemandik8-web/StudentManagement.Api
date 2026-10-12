@@ -142,3 +142,67 @@ curl -X POST http://localhost:5004/api/students \
 ## Learning Objectives
 
 This project is an opportunity to develop practical skills in full-stack application development, REST API design, database management, secure authentication, automated testing, CI/CD, and cloud deployment.
+
+
+
+## Troubleshooting and Debugging
+
+During development, I encountered and resolved several issues while testing the Student Management API.
+
+### 1. Swagger UI Validation Error for Route Parameters
+
+**Problem**
+
+When testing the `PUT` and `DELETE` endpoints through Swagger UI, I encountered the following validation error:
+
+```text
+Please correct the following validation errors and try again.
+For 'id': Required field is not provided.
+```
+
+The error appeared after clicking **Execute**, even though the endpoint required a student ID in the URL.
+
+**Debugging process**
+
+- Confirmed that the `id` field was visible in Swagger UI after clicking **Try it out**.
+- Investigated the request configuration and how Swagger UI handled the required route parameter.
+- Adjusted the API configuration and retested the affected endpoints.
+
+**Resolution**
+
+The issue was resolved after making changes to the application's JSON configuration and OpenAPI setup.
+
+The following configuration was added to `Program.cs`:
+
+```csharp
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling =
+        System.Text.Json.Serialization.JsonNumberHandling.Strict;
+});
+
+builder.Services.AddOpenApi();
+```
+
+The OpenAPI document was exposed using:
+
+```csharp
+app.MapOpenApi();
+```
+
+Swagger UI was configured to use the generated OpenAPI document:
+
+```csharp
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint(
+        "/openapi/v1.json",
+        "Student Management API v1");
+});
+```
+
+**Lesson learned**
+
+This experience reinforced the importance of inspecting API requests, checking route parameters, understanding JSON serialization, and testing endpoints after making configuration changes.
+
+> Note: The exact root cause of the Swagger validation error has not been independently confirmed. The configuration above records the changes made during troubleshooting rather than establishing that JSON number handling was definitively responsible for the fix.
