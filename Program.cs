@@ -2,12 +2,32 @@ using StudentManagement.Api;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddOpenApi(options =>
+{
+    options.AddSchemaTransformer((schema, context, cancellationToken) =>
+    {
+        // Force int/int32 (and long/int64) to be pure integer instead of the integer|string union
+        if (schema.Format is "int32" or "int64" && schema.Type.HasValue)
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+        }
+        return Task.CompletedTask;
+    });
+});
 
 // Register the SQLite database
 builder.Services.AddDbContext<StudentDbContext>(options =>
     options.UseSqlite("Data Source=students.db"));
 
 var app = builder.Build();
+app.MapOpenApi();
+
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint(
+        "/openapi/v1.json",
+        "Student Management API v1");
+});
 
 
 static Dictionary<string, string[]> ValidateStudent(Student student)
