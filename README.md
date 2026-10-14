@@ -126,7 +126,7 @@ curl -X POST http://localhost:5004/api/students \
 - [x] Integrate SQLite with Entity Framework Core
 - [x] Add input validation and error handling
 - [x] Configure database migrations
-- [ ] Add Swagger/OpenAPI documentation
+- [x] Add Swagger/OpenAPI documentation
 - [ ] Implement JWT authentication and authorization
 - [ ] Develop the React frontend
 - [ ] Integrate the frontend with the backend
