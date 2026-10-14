@@ -19,6 +19,9 @@
 
   <ItemGroup>
     <Compile Remove="StudentManagement.Api.Tests/**/*.cs" />
+    <Content Remove="StudentManagement.Api.Tests/**" />
+    <None Remove="StudentManagement.Api.Tests/**" />
+    <EmbeddedResource Remove="StudentManagement.Api.Tests/**" />
   </ItemGroup>
 
 </Project>

@@ -129,3 +129,4 @@ app.MapDelete("/api/students/{id}", async (int id, StudentDbContext db) =>
 });
 
 app.Run();
+public partial class Program { }
