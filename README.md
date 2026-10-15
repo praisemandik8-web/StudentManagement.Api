@@ -127,6 +127,7 @@ curl -X POST http://localhost:5004/api/students \
 - [x] Add input validation and error handling
 - [x] Configure database migrations
 - [x] Add Swagger/OpenAPI documentation
+- [x] Introduce DTOs for create, update, and response models
 - [ ] Implement JWT authentication and authorization
 - [ ] Develop the React frontend
 - [ ] Integrate the frontend with the backend

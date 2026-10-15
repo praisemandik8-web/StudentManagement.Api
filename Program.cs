@@ -30,13 +30,15 @@ app.UseSwaggerUI(options =>
 });
 
 
-static Dictionary<string, string[]> ValidateStudent(Student student)
+
+
+static Dictionary<string, string[]> ValidateModel(object model)
 {
-    var context = new System.ComponentModel.DataAnnotations.ValidationContext(student);
+    var context = new System.ComponentModel.DataAnnotations.ValidationContext(model);
     var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
 
     bool isValid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
-        student,
+        model,
         context,
         results,
         validateAllProperties: true);
@@ -58,13 +60,24 @@ static Dictionary<string, string[]> ValidateStudent(Student student)
 app.MapGet("/", () => "Student Management API is running!");
 
 // GET: Retrieve all students
+
 app.MapGet("/api/students", async (StudentDbContext db) =>
 {
-    var students = await db.Students.ToListAsync();
+    var students = await db.Students
+        .Select(student => new StudentDto
+        {
+            Id = student.Id,
+            Name = student.Name,
+            Course = student.Course
+        })
+        .ToListAsync();
+
     return Results.Ok(students);
 });
 
+
 // GET: Retrieve one student by ID
+
 app.MapGet("/api/students/{id}", async (int id, StudentDbContext db) =>
 {
     var student = await db.Students.FindAsync(id);
@@ -72,30 +85,60 @@ app.MapGet("/api/students/{id}", async (int id, StudentDbContext db) =>
     if (student == null)
         return Results.NotFound("Student not found.");
 
-    return Results.Ok(student);
+    var studentDto = new StudentDto
+    {
+        Id = student.Id,
+        Name = student.Name,
+        Course = student.Course
+    };
+
+    return Results.Ok(studentDto);
 });
+
 
 // POST: Add a new student
 
-app.MapPost("/api/students", async (Student student, StudentDbContext db) =>
+
+app.MapPost("/api/students", async (CreateStudentDto studentDto, StudentDbContext db) =>
 {
-    var errors = ValidateStudent(student);
+    var errors = ValidateModel(studentDto);
 
     if (errors.Count > 0)
         return Results.ValidationProblem(errors);
 
+    var student = new Student
+    {
+        Name = studentDto.Name,
+        Course = studentDto.Course
+    };
+
     db.Students.Add(student);
     await db.SaveChangesAsync();
 
-    return Results.Created($"/api/students/{student.Id}", student);
+    var studentDtoResponse = new StudentDto
+{
+    Id = student.Id,
+    Name = student.Name,
+    Course = student.Course
+};
+
+    return Results.Created(
+    $"/api/students/{student.Id}",
+    studentDtoResponse
+);
 });
+
 
 
 // PUT: Update an existing student
 
-app.MapPut("/api/students/{id}", async (int id, Student updatedStudent, StudentDbContext db) =>
+
+app.MapPut("/api/students/{id}", async (
+    int id,
+    UpdateStudentDto updatedStudentDto,
+    StudentDbContext db) =>
 {
-    var errors = ValidateStudent(updatedStudent);
+    var errors = ValidateModel(updatedStudentDto);
 
     if (errors.Count > 0)
         return Results.ValidationProblem(errors);
@@ -105,13 +148,21 @@ app.MapPut("/api/students/{id}", async (int id, Student updatedStudent, StudentD
     if (student == null)
         return Results.NotFound("Student not found.");
 
-    student.Name = updatedStudent.Name;
-    student.Course = updatedStudent.Course;
+    student.Name = updatedStudentDto.Name;
+    student.Course = updatedStudentDto.Course;
 
     await db.SaveChangesAsync();
 
-    return Results.Ok(student);
+    var studentDtoResponse = new StudentDto
+    {
+    Id = student.Id,
+    Name = student.Name,
+    Course = student.Course
+    };
+
+    return Results.Ok(studentDtoResponse);
 });
+
 
 
 // DELETE: Remove a student
