@@ -8,10 +8,14 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using StudentManagement.Api;
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Configuration;
+using System.Text.Json;
+using System.Net.Http.Headers;
 
 namespace StudentManagement.Api.Tests;
 
-public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class ApiIntegrationTests
+    : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
 {
     private readonly SqliteConnection _connection;
     private readonly WebApplicationFactory<Program> _factory;
@@ -25,6 +29,19 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Jwt:Key"] = "integration-test-signing-key-with-at-least-32-characters",
+                    ["Jwt:Issuer"] = "StudentManagement.Api.Tests",
+                    ["Jwt:Audience"] = "StudentManagement.Api.Tests",
+                    ["Auth:Username"] = "test-user",
+                    ["Auth:Password"] = "test-password"
+                });
+            });
+
+            
             builder.ConfigureServices(services =>
             {
                 // Remove the API's normal database configuration.
@@ -241,12 +258,187 @@ public async Task CreateStudent_ReturnsValidationProblem_WhenNameIsTooShort()
     Assert.DoesNotContain(students, student => student.Name == "P");
 }
 
-
-    
-    public void Dispose()
+[Fact]
+public async Task Login_ReturnsAccessToken_WhenCredentialsAreValid()
+{
+    var loginRequest = new
     {
-        _client.Dispose();
-        _factory.Dispose();
-        _connection.Dispose();
+        Username = "test-user",
+        Password = "test-password"
+    };
+
+    var response = await _client.PostAsJsonAsync(
+        "/api/auth/token",
+        loginRequest
+    );
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+    var responseBody = await response.Content
+        .ReadFromJsonAsync<JsonElement>();
+
+    var accessToken = responseBody
+        .GetProperty("accessToken")
+        .GetString();
+
+    var tokenType = responseBody
+        .GetProperty("tokenType")
+        .GetString();
+
+    Assert.False(string.IsNullOrWhiteSpace(accessToken));
+    Assert.Equal("Bearer", tokenType);
+}
+
+
+[Fact]
+public async Task Login_ReturnsUnauthorized_WhenPasswordIsIncorrect()
+{
+    var loginRequest = new
+    {
+        Username = "test-user",
+        Password = "wrong-password"
+    };
+
+    var response = await _client.PostAsJsonAsync(
+        "/api/auth/token",
+        loginRequest
+    );
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+}
+
+[Fact]
+public async Task GetStudents_ReturnsUnauthorized_WhenNoTokenIsProvided()
+{
+    using var unauthenticatedClient = _factory.CreateClient();
+
+    var response = await unauthenticatedClient.GetAsync(
+        "/api/students"
+    );
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+}
+
+[Fact]
+public async Task CreateStudent_ReturnsUnauthorized_WhenNoTokenIsProvided()
+{
+    using var unauthenticatedClient = _factory.CreateClient();
+
+    var newStudent = new
+    {
+        Name = "Unauthenticated User",
+        Course = "Software Engineering"
+    };
+
+    var response = await unauthenticatedClient.PostAsJsonAsync(
+        "/api/students",
+        newStudent
+    );
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+}
+    
+[Fact]
+public async Task UpdateStudent_ReturnsUnauthorized_WhenNoTokenIsProvided()
+{
+    using var unauthenticatedClient = _factory.CreateClient();
+
+    var updatedStudent = new
+    {
+        Name = "Updated Name",
+        Course = "Computer Science"
+    };
+
+    var response = await unauthenticatedClient.PutAsJsonAsync(
+        "/api/students/1",
+        updatedStudent
+    );
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+} 
+
+
+[Fact]
+public async Task DeleteStudent_ReturnsUnauthorized_WhenNoTokenIsProvided()
+{
+    using var unauthenticatedClient = _factory.CreateClient();
+
+    var response = await unauthenticatedClient.DeleteAsync(
+        "/api/students/1"
+    );
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+}
+
+[Fact]
+public async Task GetStudents_ReturnsUnauthorized_WhenTokenIsInvalid()
+{
+    using var client = _factory.CreateClient();
+
+    client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue(
+            "Bearer",
+            "this-is-not-a-valid-jwt"
+        );
+
+    var response = await client.GetAsync("/api/students");
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode
+    );
+}
+
+public async Task InitializeAsync()
+{
+    var loginResponse = await _client.PostAsJsonAsync(
+        "/api/auth/token",
+        new
+        {
+            Username = "test-user",
+            Password = "test-password"
+        });
+
+    loginResponse.EnsureSuccessStatusCode();
+
+    var tokenResponse = await loginResponse.Content
+        .ReadFromJsonAsync<JsonElement>();
+
+    var accessToken = tokenResponse
+        .GetProperty("accessToken")
+        .GetString();
+
+    if (string.IsNullOrWhiteSpace(accessToken))
+    {
+        throw new InvalidOperationException(
+            "The login response did not contain an access token.");
     }
+
+    _client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Bearer", accessToken);
+}
+
+public Task DisposeAsync()
+{
+    _client.Dispose();
+    _factory.Dispose();
+    _connection.Dispose();
+
+    return Task.CompletedTask;
+}
 }

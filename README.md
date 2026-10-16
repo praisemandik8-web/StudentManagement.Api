@@ -128,10 +128,10 @@ curl -X POST http://localhost:5004/api/students \
 - [x] Configure database migrations
 - [x] Add Swagger/OpenAPI documentation
 - [x] Introduce DTOs for create, update, and response models
-- [ ] Implement JWT authentication and authorization
+- [x] Implement JWT authentication and authorization
 - [ ] Develop the React frontend
 - [ ] Integrate the frontend with the backend
-- [ ] Add automated tests
+- [x] Add automated tests
 - [ ] Configure CI/CD using GitHub Actions
 - [ ] Deploy the application to Microsoft Azure
 - [ ] Configure a production database and application monitoring
